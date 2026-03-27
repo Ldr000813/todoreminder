@@ -1,65 +1,153 @@
-import Image from "next/image";
+"use client";
+
+import { useState, useEffect } from "react";
+import { format } from "date-fns";
+import { Plus } from "lucide-react";
+import { CalendarStrip } from "@/components/CalendarStrip";
+import { TaskList } from "@/components/TaskList";
+import { TaskFormDialog } from "@/components/TaskFormDialog";
+import { Task, TaskStatus } from "@/components/TaskItem";
 
 export default function Home() {
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  
+  // Dialog state
+  const [isDialogOpen, setDialogOpen] = useState(false);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
+
+  useEffect(() => {
+    fetchTasks(selectedDate);
+  }, [selectedDate]);
+
+  const fetchTasks = async (date: Date) => {
+    const dateStr = format(date, "yyyy-MM-dd");
+    const res = await fetch(`/api/tasks?date=${dateStr}`);
+    if (res.ok) {
+      const data = await res.json();
+      setTasks(data.tasks);
+    }
+  };
+
+  const handleSaveTask = async (taskData: Partial<Task>) => {
+    if (editingTask) {
+      // Edit
+      const res = await fetch(`/api/tasks/${editingTask.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(taskData),
+      });
+      if (res.ok) fetchTasks(selectedDate);
+    } else {
+      // Create
+      const res = await fetch("/api/tasks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          ...taskData, 
+          date: format(selectedDate, "yyyy-MM-dd"),
+          order: tasks.length 
+        }),
+      });
+      if (res.ok) fetchTasks(selectedDate);
+    }
+    setEditingTask(null);
+  };
+
+  const handleToggleStatus = async (task: Task) => {
+    // Optimistic UI update
+    const previousTasks = [...tasks];
+    const nextStatus = task.status === "TODO" ? "IN_PROGRESS" : task.status === "IN_PROGRESS" ? "DONE" : "TODO";
+    setTasks(tasks.map(t => t.id === task.id ? { ...t, status: nextStatus } : t));
+    
+    // API Call
+    const res = await fetch(`/api/tasks/${task.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: nextStatus }),
+    });
+    
+    // Revert if failed
+    if (!res.ok) {
+      setTasks(previousTasks);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    const previousTasks = [...tasks];
+    setTasks(tasks.filter(t => t.id !== id));
+    
+    const res = await fetch(`/api/tasks/${id}`, { method: "DELETE" });
+    if (!res.ok) setTasks(previousTasks);
+  };
+
+  const handleReorder = async (newTasks: Task[]) => {
+    setTasks(newTasks);
+    // Persist all new orders at once sequentially (or a batch api if exists, but we'll do sequentially for now)
+    await Promise.all(
+       newTasks.map(task => 
+          fetch(`/api/tasks/${task.id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ order: task.order }),
+          })
+       )
+    );
+  };
+
+  const openNewTask = () => {
+    setEditingTask(null);
+    setDialogOpen(true);
+  };
+
+  const openEditTask = (task: Task) => {
+    setEditingTask(task);
+    setDialogOpen(true);
+  };
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
+    <main className="flex flex-col h-[100dvh]">
+      {/* Header Area */}
+      <header className="pt-10 pb-4 px-6 relative z-20">
+        <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-br from-brand-600 to-indigo-400 dark:from-brand-300 dark:to-indigo-200 bg-clip-text text-transparent">
+          TaskFlow
+        </h1>
+        <p className="text-slate-500 font-medium text-sm mt-1">
+          {format(selectedDate, "MMMM yyyy")}
+        </p>
+      </header>
+
+      {/* Calendar Area */}
+      <div className="z-10 mt-2 mb-4 shrink-0">
+        <CalendarStrip selectedDate={selectedDate} onSelectDate={setSelectedDate} />
+      </div>
+
+      {/* Tasks Area */}
+      <div className="flex-1 overflow-y-auto z-0">
+        <TaskList 
+          tasks={tasks}
+          onReorder={handleReorder}
+          onToggleStatus={handleToggleStatus}
+          onDelete={handleDelete}
+          onEdit={openEditTask}
         />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+      </div>
+
+      {/* Floating Action Button */}
+      <button 
+        onClick={openNewTask}
+        className="absolute bottom-6 right-6 p-4 rounded-full bg-brand-600 text-white shadow-xl shadow-brand-500/40 hover:scale-110 active:scale-95 transition-all z-30 flex items-center justify-center"
+      >
+        <Plus size={32} strokeWidth={2.5} />
+      </button>
+
+      {/* Form Dialog */}
+      <TaskFormDialog 
+        isOpen={isDialogOpen}
+        onClose={() => setDialogOpen(false)}
+        onSave={handleSaveTask}
+        task={editingTask}
+      />
+    </main>
   );
 }
