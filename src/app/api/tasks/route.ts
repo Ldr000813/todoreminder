@@ -46,6 +46,7 @@ export async function POST(request: Request) {
       status: status || 'TODO',
       date,
       order: order || 0,
+      failureReason: body.failureReason || '',
       createdAt: new Date(),
       updatedAt: new Date(),
     };
