@@ -27,7 +27,13 @@ export async function GET(request: Request) {
           .where('date', '==', todayStr)
           .get();
        const tasks = tasksSnapshot.docs.map(doc => doc.data());
-       await sendDailyReport(process.env.MOCK_USER_EMAIL, todayStr, tasks);
+       
+       const transactionsSnapshot = await db.collection('transactions')
+          .where('date', '==', todayStr)
+          .get();
+       const transactions = transactionsSnapshot.docs.map(doc => doc.data());
+       
+       await sendDailyReport(process.env.MOCK_USER_EMAIL, todayStr, tasks, transactions);
     }
 
     const sendPromises = usersSnapshot.docs.map(async (userDoc) => {
@@ -40,8 +46,15 @@ export async function GET(request: Request) {
 
       const tasks = tasksSnapshot.docs.map(doc => doc.data());
       
+      const transactionsSnapshot = await db.collection('transactions')
+        .where('userId', '==', userDoc.id)
+        .where('date', '==', todayStr)
+        .get();
+        
+      const transactions = transactionsSnapshot.docs.map(doc => doc.data());
+      
       if (userData.email) {
-        await sendDailyReport(userData.email, todayStr, tasks);
+        await sendDailyReport(userData.email, todayStr, tasks, transactions);
       }
     });
 
