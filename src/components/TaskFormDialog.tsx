@@ -2,12 +2,14 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X, AlertCircle } from "lucide-react";
 import { Task, TaskStatus } from "./TaskItem";
 import { useState, useEffect } from "react";
+import { format } from "date-fns";
 
 interface TaskFormDialogProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (task: Partial<Task>) => void;
   task?: Task | null;
+  currentDate?: Date;
 }
 
 const statusDisplay: Record<TaskStatus, { label: string, colorClass: string }> = {
@@ -17,11 +19,12 @@ const statusDisplay: Record<TaskStatus, { label: string, colorClass: string }> =
   FAILED: { label: "失敗", colorClass: "text-rose-600 dark:text-rose-400 bg-white dark:bg-[#1a1a1f]" },
 };
 
-export function TaskFormDialog({ isOpen, onClose, onSave, task }: TaskFormDialogProps) {
+export function TaskFormDialog({ isOpen, onClose, onSave, task, currentDate = new Date() }: TaskFormDialogProps) {
   const [title, setTitle] = useState("");
   const [memo, setMemo] = useState("");
   const [status, setStatus] = useState<TaskStatus>("TODO");
   const [failureReason, setFailureReason] = useState("");
+  const [taskDate, setTaskDate] = useState("");
 
   useEffect(() => {
     if (task) {
@@ -29,13 +32,15 @@ export function TaskFormDialog({ isOpen, onClose, onSave, task }: TaskFormDialog
       setMemo(task.memo || "");
       setStatus(task.status || "TODO");
       setFailureReason(task.failureReason || "");
+      setTaskDate(task.date || format(currentDate, "yyyy-MM-dd"));
     } else {
       setTitle("");
       setMemo("");
       setStatus("TODO");
       setFailureReason("");
+      setTaskDate(format(currentDate, "yyyy-MM-dd"));
     }
-  }, [task, isOpen]);
+  }, [task, isOpen, currentDate]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,6 +49,7 @@ export function TaskFormDialog({ isOpen, onClose, onSave, task }: TaskFormDialog
       title: title.trim(), 
       memo: memo.trim(), 
       status,
+      date: taskDate,
       failureReason: status === "FAILED" ? failureReason.trim() : ""
     });
     onClose();
@@ -97,6 +103,19 @@ export function TaskFormDialog({ isOpen, onClose, onSave, task }: TaskFormDialog
                   placeholder="メモや詳細..."
                   rows={2}
                   className="w-full text-base bg-slate-50 dark:bg-[#0f0f11] border border-slate-200 dark:border-white/10 rounded-xl p-4 focus:ring-2 focus:ring-brand-500/50 outline-none transition-all resize-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
+                  日付
+                </label>
+                <input
+                  type="date"
+                  required
+                  value={taskDate}
+                  onChange={(e) => setTaskDate(e.target.value)}
+                  className="w-full text-base bg-slate-50 dark:bg-[#0f0f11] border border-slate-200 dark:border-white/10 rounded-xl p-3 focus:ring-2 focus:ring-brand-500/50 outline-none transition-all"
                 />
               </div>
 

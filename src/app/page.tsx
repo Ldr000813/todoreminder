@@ -4,10 +4,23 @@ import { useState, useEffect } from "react";
 import { format } from "date-fns";
 import { motion, AnimatePresence } from "framer-motion";
 import { Plus, Trash2 } from "lucide-react";
+import { 
+  DndContext, 
+  closestCenter, 
+  KeyboardSensor, 
+  PointerSensor, 
+  useSensor, 
+  useSensors, 
+  DragEndEvent,
+  DragStartEvent,
+  DragOverlay,
+  defaultDropAnimationSideEffects
+} from "@dnd-kit/core";
+import { arrayMove, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import { CalendarStrip } from "@/components/CalendarStrip";
 import { TaskList } from "@/components/TaskList";
 import { TaskFormDialog } from "@/components/TaskFormDialog";
-import { Task } from "@/components/TaskItem";
+import { Task, TaskItem } from "@/components/TaskItem";
 import { TransactionList } from "@/components/TransactionList";
 import { TransactionFormDialog } from "@/components/TransactionFormDialog";
 import { CategoryManagerDialog } from "@/components/CategoryManagerDialog";
@@ -85,16 +98,52 @@ export default function Home() {
     await fetch(`/api/tasks/${id}`, { method: "DELETE" });
   };
 
-  const handleReorderTasks = async (newTasks: Task[]) => {
-    setTasks(newTasks);
-    await Promise.all(newTasks.map(task => 
-      fetch(`/api/tasks/${task.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ order: task.order }),
-      })
-    ));
+  const [activeId, setActiveId] = useState<string | null>(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { delay: 100, tolerance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveId(String(event.active.id));
   };
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    setActiveId(null);
+    const { active, over } = event;
+    if (!over) return;
+
+    if (String(over.id).startsWith("date-")) {
+      const dateStr = String(over.id).replace("date-", "");
+      const task = tasks.find(t => t.id === active.id);
+      if (task && task.date !== dateStr) {
+         setTasks(tasks.filter(t => t.id !== task.id));
+         await fetch(`/api/tasks/${task.id}`, {
+           method: "PATCH",
+           headers: { "Content-Type": "application/json" },
+           body: JSON.stringify({ date: dateStr })
+         });
+      }
+    } else if (active.id !== over.id) {
+      const oldIndex = tasks.findIndex((t) => t.id === active.id);
+      const newIndex = tasks.findIndex((t) => t.id === over.id);
+      if (oldIndex !== -1 && newIndex !== -1) {
+        const newTasks = arrayMove(tasks, oldIndex, newIndex);
+        const reordered = newTasks.map((t, idx) => ({ ...t, order: idx }));
+        setTasks(reordered);
+        await Promise.all(reordered.map(t => 
+          fetch(`/api/tasks/${t.id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ order: t.order }),
+          })
+        ));
+      }
+    }
+  };
+
+  const activeTask = activeId ? tasks.find(t => t.id === activeId) : null;
 
   // API: Money
   const fetchTransactions = async (date: Date) => {
@@ -165,15 +214,31 @@ export default function Home() {
   };
 
   return (
-    <main className="flex flex-col h-[100dvh]">
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCenter}
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
+    >
+      <main className="flex flex-col h-[100dvh]">
       {/* Header Area */}
       <header className="pt-10 pb-4 px-6 relative z-20">
-        <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-br from-brand-600 to-indigo-400 dark:from-brand-300 dark:to-indigo-200 bg-clip-text text-transparent">
-          TaskFlow
-        </h1>
-        <p className="text-slate-500 font-medium text-sm mt-1">
-          {format(selectedDate, "MMMM yyyy")}
-        </p>
+        <div className="flex justify-between items-start">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-br from-brand-600 to-indigo-400 dark:from-brand-300 dark:to-indigo-200 bg-clip-text text-transparent">
+              TaskFlow
+            </h1>
+            <p className="text-slate-500 font-medium text-sm mt-1">
+              {format(selectedDate, "MMMM yyyy")}
+            </p>
+          </div>
+          <button
+            onClick={() => setSelectedDate(new Date())}
+            className="px-3.5 py-1.5 bg-brand-50/50 dark:bg-brand-950/20 hover:bg-brand-100 dark:hover:bg-brand-900/40 text-brand-600 dark:text-brand-400 text-xs font-bold rounded-lg transition-all border border-brand-200 dark:border-brand-800/50 flex flex-col items-center shadow-sm"
+          >
+            今日に戻る
+          </button>
+        </div>
 
         {/* View Mode Toggle */}
         <div className="flex bg-slate-200 dark:bg-white/10 p-1 rounded-xl mt-4 max-w-[240px]">
@@ -204,7 +269,6 @@ export default function Home() {
             <motion.div key="tasks" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
               <TaskList 
                 tasks={tasks}
-                onReorder={handleReorderTasks}
                 onToggleStatus={handleToggleTaskStatus}
                 onDelete={(id) => setTaskToDelete(id)}
                 onEdit={(task) => { setEditingTask(task); setTaskDialogOpen(true); }}
@@ -236,6 +300,7 @@ export default function Home() {
         onClose={() => setTaskDialogOpen(false)}
         onSave={handleSaveTask}
         task={editingTask}
+        currentDate={selectedDate}
       />
 
       <TransactionFormDialog
@@ -300,6 +365,12 @@ export default function Home() {
           </>
         )}
       </AnimatePresence>
+
+      <DragOverlay dropAnimation={{ sideEffects: defaultDropAnimationSideEffects({ styles: { active: { opacity: "0.4" } } }) }}>
+        {activeTask ? <TaskItem task={activeTask} onToggleStatus={() => {}} onDelete={() => {}} onEdit={() => {}} /> : null}
+      </DragOverlay>
+
     </main>
+    </DndContext>
   );
 }

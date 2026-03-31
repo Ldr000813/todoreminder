@@ -29,7 +29,13 @@ export function TaskItem({ task, onToggleStatus, onDelete, onEdit }: TaskItemPro
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: task.id });
+  } = useSortable({ 
+    id: task.id,
+    transition: {
+      duration: 800,
+      easing: "cubic-bezier(0.5, 0, 1, 1)", // より強調された最初はゆっくり、後から加速 (Stronger ease-in)
+    }
+  });
 
   const style = {
     transform: CSS.Transform.toString(transform),

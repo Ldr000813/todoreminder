@@ -19,31 +19,13 @@ import { TaskItem, Task, TaskStatus } from "./TaskItem";
 
 interface TaskListProps {
   tasks: Task[];
-  onReorder: (tasks: Task[]) => void;
   onToggleStatus: (task: Task) => void;
   onDelete: (id: string) => void;
   onEdit: (task: Task) => void;
 }
 
-export function TaskList({ tasks, onReorder, onToggleStatus, onDelete, onEdit }: TaskListProps) {
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { delay: 100, tolerance: 5 } }),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    })
-  );
+export function TaskList({ tasks, onToggleStatus, onDelete, onEdit }: TaskListProps) {
 
-  const handleDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event;
-    if (over && active.id !== over.id) {
-      const oldIndex = tasks.findIndex((t) => t.id === active.id);
-      const newIndex = tasks.findIndex((t) => t.id === over.id);
-      const newTasks = arrayMove(tasks, oldIndex, newIndex);
-      // Generate new sorting orders
-      const reordered = newTasks.map((t, idx) => ({ ...t, order: idx }));
-      onReorder(reordered);
-    }
-  };
 
   if (!tasks.length) {
     return (
@@ -56,8 +38,7 @@ export function TaskList({ tasks, onReorder, onToggleStatus, onDelete, onEdit }:
   }
 
   return (
-    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-      <SortableContext items={tasks.map(t => t.id)} strategy={verticalListSortingStrategy}>
+    <SortableContext items={tasks.map(t => t.id)} strategy={verticalListSortingStrategy}>
         <div className="px-4 pb-[8rem]">
           {tasks.map(task => (
              <TaskItem 
@@ -70,6 +51,5 @@ export function TaskList({ tasks, onReorder, onToggleStatus, onDelete, onEdit }:
           ))}
         </div>
       </SortableContext>
-    </DndContext>
   );
 }
