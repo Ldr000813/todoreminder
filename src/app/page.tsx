@@ -8,7 +8,8 @@ import {
   DndContext, 
   closestCenter, 
   KeyboardSensor, 
-  PointerSensor, 
+  MouseSensor,
+  TouchSensor, 
   useSensor, 
   useSensors, 
   DragEndEvent,
@@ -101,7 +102,8 @@ export default function Home() {
   const [activeId, setActiveId] = useState<string | null>(null);
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { delay: 100, tolerance: 5 } }),
+    useSensor(MouseSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 5 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 

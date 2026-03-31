@@ -32,8 +32,8 @@ export function TaskItem({ task, onToggleStatus, onDelete, onEdit }: TaskItemPro
   } = useSortable({ 
     id: task.id,
     transition: {
-      duration: 800,
-      easing: "cubic-bezier(0.5, 0, 1, 1)", // より強調された最初はゆっくり、後から加速 (Stronger ease-in)
+      duration: 300,
+      easing: "cubic-bezier(0.25, 1, 0.5, 1)", // もっと自然で使いやすい速度に戻す (Natural speed)
     }
   });
 
@@ -63,9 +63,9 @@ export function TaskItem({ task, onToggleStatus, onDelete, onEdit }: TaskItemPro
       <button 
         {...attributes} 
         {...listeners}
-        className="mr-3 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 active:cursor-grabbing cursor-grab touch-none"
+        className="p-3 -ml-2 mr-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 active:cursor-grabbing cursor-grab touch-none"
       >
-        <GripVertical size={20} />
+        <GripVertical size={22} />
       </button>
 
       <button 
