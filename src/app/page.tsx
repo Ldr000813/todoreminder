@@ -286,7 +286,7 @@ export default function Home() {
     >
       <main className="flex flex-col h-[100dvh]">
       {/* Header Area */}
-      <header className="pt-10 pb-4 px-6 relative z-20">
+      <header className="pt-10 pb-2 px-6 relative z-20">
         <div className="flex justify-between items-start">
           <div>
             <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-br from-brand-600 to-indigo-400 dark:from-brand-300 dark:to-indigo-200 bg-clip-text text-transparent">
@@ -327,7 +327,7 @@ export default function Home() {
       </div>
 
       {/* Calendar Area */}
-      <div className="z-10 mt-2 mb-4 shrink-0">
+      <div className="z-10 mt-1 mb-1 shrink-0">
         <CalendarStrip selectedDate={selectedDate} onSelectDate={setSelectedDate} taskDates={taskDates} />
       </div>
 

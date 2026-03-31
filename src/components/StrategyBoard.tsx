@@ -62,7 +62,7 @@ export function StrategyBoard() {
   }, [isEditing, strategyText]);
 
   return (
-    <div className="mx-6 mb-4 mt-2 bg-gradient-to-r from-brand-50 to-indigo-50 dark:from-brand-950/30 dark:to-indigo-950/30 rounded-2xl border border-brand-100/50 dark:border-brand-800/30 shadow-sm relative group overflow-hidden">
+    <div className="mx-6 mb-1 mt-1 bg-gradient-to-r from-brand-50 to-indigo-50 dark:from-brand-950/30 dark:to-indigo-950/30 rounded-2xl border border-brand-100/50 dark:border-brand-800/30 shadow-sm relative group overflow-hidden">
       <div className="absolute top-0 right-0 w-32 h-32 bg-brand-200/20 dark:bg-brand-500/10 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none" />
       
       <div 

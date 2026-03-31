@@ -114,7 +114,7 @@ export function CalendarStrip({ selectedDate, onSelectDate, taskDates }: Calenda
   }, [selectedDate, days]);
 
   return (
-    <div className="py-4 px-2 w-full overflow-hidden relative">
+    <div className="py-1 px-2 w-full overflow-hidden relative">
       <div className="absolute inset-y-0 left-0 w-8 bg-gradient-to-r from-slate-50 dark:from-[#0f0f11] to-transparent z-10 pointer-events-none" />
       <div className="absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-slate-50 dark:from-[#0f0f11] to-transparent z-10 pointer-events-none" />
       
