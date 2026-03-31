@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Plus, Trash2 } from "lucide-react";
 import { 
   DndContext, 
-  closestCenter, 
+  pointerWithin, 
   KeyboardSensor, 
   MouseSensor,
   TouchSensor, 
@@ -15,6 +15,7 @@ import {
   DragEndEvent,
   DragStartEvent,
   DragOverlay,
+  useDroppable,
   defaultDropAnimationSideEffects
 } from "@dnd-kit/core";
 import { arrayMove, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
@@ -26,6 +27,36 @@ import { TransactionList } from "@/components/TransactionList";
 import { TransactionFormDialog } from "@/components/TransactionFormDialog";
 import { CategoryManagerDialog } from "@/components/CategoryManagerDialog";
 import { Transaction, Category } from "@/types/money";
+
+function CancelZone({ isDragging }: { isDragging: boolean }) {
+  const { isOver, setNodeRef } = useDroppable({
+    id: "cancel-zone"
+  });
+
+  return (
+    <AnimatePresence>
+      {isDragging && (
+        <motion.div
+           initial={{ opacity: 0 }}
+           animate={{ opacity: 1 }}
+           exit={{ opacity: 0 }}
+           transition={{ duration: 0.2 }}
+           ref={setNodeRef}
+           className={`absolute inset-0 flex flex-col items-center justify-center p-4 z-[60] transition-colors ${
+             isOver ? "bg-slate-200/90 dark:bg-[#1a1a1f]/90 border-4 border-dashed border-brand-500 text-brand-600 dark:text-brand-400" : "bg-white/90 dark:bg-[#0f0f11]/90 border-4 border-dashed border-slate-300 dark:border-white/20 text-slate-500"
+           } backdrop-blur-sm`}
+        >
+          <div className="font-extrabold text-2xl mb-2">
+            {isOver ? "指を離してキャンセル" : "ここにドロップでキャンセル"}
+          </div>
+          <p className="text-sm font-semibold opacity-80">
+            Cancel Drag
+          </p>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
 
 export default function Home() {
   const [viewMode, setViewMode] = useState<"tasks" | "money">("tasks");
@@ -115,6 +146,10 @@ export default function Home() {
     setActiveId(null);
     const { active, over } = event;
     if (!over) return;
+    
+    if (over.id === "cancel-zone") {
+      return;
+    }
 
     if (String(over.id).startsWith("date-")) {
       const dateStr = String(over.id).replace("date-", "");
@@ -218,7 +253,7 @@ export default function Home() {
   return (
     <DndContext
       sensors={sensors}
-      collisionDetection={closestCenter}
+      collisionDetection={pointerWithin}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
@@ -265,7 +300,8 @@ export default function Home() {
       </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 overflow-y-auto z-0">
+      <div className="flex-1 overflow-y-auto z-0 relative">
+        <CancelZone isDragging={!!activeId} />
         <AnimatePresence mode="wait">
           {viewMode === "tasks" ? (
             <motion.div key="tasks" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
@@ -369,7 +405,16 @@ export default function Home() {
       </AnimatePresence>
 
       <DragOverlay dropAnimation={{ sideEffects: defaultDropAnimationSideEffects({ styles: { active: { opacity: "0.4" } } }) }}>
-        {activeTask ? <TaskItem task={activeTask} onToggleStatus={() => {}} onDelete={() => {}} onEdit={() => {}} /> : null}
+        {activeTask ? (
+          <div className="w-[4.5rem] h-[4.5rem] rounded-full bg-gradient-to-br from-brand-500 to-indigo-500 shadow-[0_10px_40px_-10px_rgba(99,102,241,0.8)] flex flex-col items-center justify-center ring-4 ring-white dark:ring-[#1a1a1f] backdrop-blur-md cursor-grabbing z-50 animate-in zoom-in-75 duration-200">
+            <span className="text-white font-extrabold text-[1.1rem] max-w-full px-2 truncate leading-none drop-shadow-sm">
+              {activeTask.title.substring(0, 2)}
+            </span>
+            <span className="text-white/80 text-[0.6rem] font-bold mt-1 uppercase tracking-wider">
+              Move
+            </span>
+          </div>
+        ) : null}
       </DragOverlay>
 
     </main>

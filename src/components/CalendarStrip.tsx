@@ -23,7 +23,7 @@ function DayButton({ date, selectedDate, onSelectDate }: { date: Date, selectedD
       ref={setNodeRef}
       data-selected={isSelected}
       onClick={() => onSelectDate(date)}
-      className={`snap-center flex flex-col items-center justify-center min-w-[3.5rem] h-[4.5rem] rounded-2xl transition-all relative ${
+      className={`flex flex-col items-center justify-center min-w-[3.5rem] h-[4.5rem] rounded-2xl transition-all relative ${
         isOver
           ? "bg-brand-200 dark:bg-brand-800 ring-2 ring-brand-500 scale-110 z-20"
           : isSelected 
@@ -65,16 +65,43 @@ export function CalendarStrip({ selectedDate, onSelectDate }: CalendarStripProps
   }, []);
 
   useEffect(() => {
+    let animationFrameId: number;
+    let startTime: number | null = null;
+    
     // Center selected date on mount or change
     if (containerRef.current) {
       const selectedEl = containerRef.current.querySelector('[data-selected="true"]') as HTMLElement;
       if (selectedEl) {
-        containerRef.current.scrollTo({
-          left: selectedEl.offsetLeft - containerRef.current.offsetWidth / 2 + selectedEl.offsetWidth / 2,
-          behavior: "smooth"
-        });
+        const targetLeft = selectedEl.offsetLeft - containerRef.current.offsetWidth / 2 + selectedEl.offsetWidth / 2;
+        const startLeft = containerRef.current.scrollLeft;
+        const distance = targetLeft - startLeft;
+        
+        const duration = 1200; // かなり落として (Much slower, 1.2 seconds)
+        
+        const animation = (currentTime: number) => {
+          if (startTime === null) startTime = currentTime;
+          const timeElapsed = currentTime - startTime;
+          const progress = Math.min(timeElapsed / duration, 1);
+          
+          // custom smooth easeOut (exponential decay)
+          const ease = progress === 1 ? 1 : 1 - Math.pow(2, -10 * progress);
+          
+          if (containerRef.current) {
+            containerRef.current.scrollLeft = startLeft + distance * ease;
+          }
+          
+          if (timeElapsed < duration) {
+            animationFrameId = requestAnimationFrame(animation);
+          }
+        };
+        
+        animationFrameId = requestAnimationFrame(animation);
       }
     }
+    
+    return () => {
+      if (animationFrameId) cancelAnimationFrame(animationFrameId);
+    };
   }, [selectedDate, days]);
 
   return (
@@ -84,7 +111,7 @@ export function CalendarStrip({ selectedDate, onSelectDate }: CalendarStripProps
       
       <div 
         ref={containerRef}
-        className="flex gap-3 overflow-x-auto no-scrollbar snap-x snap-mandatory px-3 pb-2 pt-1"
+        className="flex gap-3 overflow-x-auto no-scrollbar px-3 pb-2 pt-1"
         style={{ scrollbarWidth: "none" }}
       >
         {days.map((date, idx) => (
