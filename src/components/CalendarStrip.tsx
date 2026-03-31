@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { format, addDays, isSameDay } from "date-fns";
 import { motion } from "framer-motion";
-import { useDroppable } from "@dnd-kit/core";
+import { useDroppable, useDndContext } from "@dnd-kit/core";
 
 interface CalendarStripProps {
   selectedDate: Date;
@@ -11,7 +11,7 @@ interface CalendarStripProps {
   taskDates: Set<string>;
 }
 
-function DayButton({ date, selectedDate, onSelectDate, hasTask }: { date: Date, selectedDate: Date, onSelectDate: (d: Date) => void, hasTask: boolean }) {
+function DayButton({ date, selectedDate, onSelectDate, hasTask, isDragging }: { date: Date, selectedDate: Date, onSelectDate: (d: Date) => void, hasTask: boolean, isDragging: boolean }) {
   const isSelected = isSameDay(date, selectedDate);
   const isToday = isSameDay(date, new Date());
   
@@ -24,7 +24,9 @@ function DayButton({ date, selectedDate, onSelectDate, hasTask }: { date: Date, 
       ref={setNodeRef}
       data-selected={isSelected}
       onClick={() => onSelectDate(date)}
-      className={`flex flex-col items-center justify-center min-w-[3.5rem] h-[4.5rem] rounded-2xl transition-all relative ${
+      className={`flex flex-col items-center justify-center transition-all duration-300 relative ${
+        isDragging ? "min-w-[3.5rem] h-[4.5rem] rounded-2xl" : "min-w-[2.75rem] h-[3.5rem] rounded-xl"
+      } ${
         isOver
           ? "bg-brand-200 dark:bg-brand-800 ring-2 ring-brand-500 scale-110 z-20"
           : isSelected 
@@ -34,10 +36,10 @@ function DayButton({ date, selectedDate, onSelectDate, hasTask }: { date: Date, 
           : "bg-white dark:bg-white/5 text-slate-500 hover:bg-slate-100 dark:hover:bg-white/10 ring-1 ring-slate-900/5 dark:ring-white/10"
       }`}
     >
-      <span className="text-xs font-medium uppercase tracking-wider mb-1 opacity-80">
+      <span className={`${isDragging ? 'text-xs mb-1' : 'text-[10px] mb-0.5'} font-medium uppercase tracking-wider opacity-80 transition-all duration-300`}>
         {format(date, "EEE")}
       </span>
-      <span className={`text-lg font-bold ${isOver && !isSelected ? "text-brand-700 dark:text-brand-300" : ""}`}>
+      <span className={`${isDragging ? 'text-lg' : 'text-base'} font-bold transition-all duration-300 ${isOver && !isSelected ? "text-brand-700 dark:text-brand-300" : ""}`}>
         {format(date, "d")}
       </span>
       
@@ -58,6 +60,8 @@ function DayButton({ date, selectedDate, onSelectDate, hasTask }: { date: Date, 
 export function CalendarStrip({ selectedDate, onSelectDate, taskDates }: CalendarStripProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [days, setDays] = useState<Date[]>([]);
+  const { active } = useDndContext();
+  const isDragging = !!active;
 
   useEffect(() => {
     // Generate ±30 days from today to allow scrolling
@@ -126,6 +130,7 @@ export function CalendarStrip({ selectedDate, onSelectDate, taskDates }: Calenda
             selectedDate={selectedDate} 
             onSelectDate={onSelectDate}
             hasTask={taskDates.has(format(date, "yyyy-MM-dd"))}
+            isDragging={isDragging}
           />
         ))}
       </div>
