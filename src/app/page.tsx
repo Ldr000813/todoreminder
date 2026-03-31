@@ -26,6 +26,7 @@ import { Task, TaskItem } from "@/components/TaskItem";
 import { TransactionList } from "@/components/TransactionList";
 import { TransactionFormDialog } from "@/components/TransactionFormDialog";
 import { CategoryManagerDialog } from "@/components/CategoryManagerDialog";
+import { StrategyBoard } from "@/components/StrategyBoard";
 import { Transaction, Category } from "@/types/money";
 
 function CancelZone({ isDragging }: { isDragging: boolean }) {
@@ -64,6 +65,7 @@ export default function Home() {
 
   // Task State
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [taskDates, setTaskDates] = useState<Set<string>>(new Set());
   const [isTaskDialogOpen, setTaskDialogOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [taskToDelete, setTaskToDelete] = useState<string | null>(null);
@@ -82,9 +84,25 @@ export default function Home() {
 
   useEffect(() => {
     fetchCategories();
+    fetchAllTaskDates();
   }, []);
 
   // API: Tasks
+  const fetchAllTaskDates = async () => {
+    const res = await fetch("/api/tasks");
+    if (res.ok) {
+      const data = await res.json();
+      const todayStr = format(new Date(), "yyyy-MM-dd");
+      const datesWithDot = new Set<string>();
+
+      data.tasks.forEach((t: Task) => {
+        if (t.status === "TODO") {
+          datesWithDot.add(t.date); // 未着手のタスクがある場合のみ点をつける
+        }
+      });
+      setTaskDates(datesWithDot);
+    }
+  };
   const fetchTasks = async (date: Date) => {
     const res = await fetch(`/api/tasks?date=${format(date, "yyyy-MM-dd")}`);
     if (res.ok) {
@@ -100,14 +118,20 @@ export default function Home() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(taskData),
       });
-      if (res.ok) fetchTasks(selectedDate);
+      if (res.ok) {
+        fetchTasks(selectedDate);
+        fetchAllTaskDates();
+      }
     } else {
       const res = await fetch("/api/tasks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...taskData, date: format(selectedDate, "yyyy-MM-dd"), order: tasks.length }),
       });
-      if (res.ok) fetchTasks(selectedDate);
+      if (res.ok) {
+        fetchTasks(selectedDate);
+        fetchAllTaskDates();
+      }
     }
     setEditingTask(null);
   };
@@ -120,6 +144,7 @@ export default function Home() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status: nextStatus }),
     });
+    fetchAllTaskDates(); // ステータス変更後にやり残しタスクの有無を再評価
   };
 
   const executeDeleteTask = async () => {
@@ -128,6 +153,7 @@ export default function Home() {
     setTaskToDelete(null);
     setTasks(tasks.filter(t => t.id !== id));
     await fetch(`/api/tasks/${id}`, { method: "DELETE" });
+    fetchAllTaskDates();
   };
 
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -161,6 +187,7 @@ export default function Home() {
            headers: { "Content-Type": "application/json" },
            body: JSON.stringify({ date: dateStr })
          });
+         fetchAllTaskDates();
       }
     } else if (active.id !== over.id) {
       const oldIndex = tasks.findIndex((t) => t.id === active.id);
@@ -294,9 +321,14 @@ export default function Home() {
         </div>
       </header>
 
+      {/* Strategy Board Area */}
+      <div className="shrink-0 z-10">
+        <StrategyBoard />
+      </div>
+
       {/* Calendar Area */}
       <div className="z-10 mt-2 mb-4 shrink-0">
-        <CalendarStrip selectedDate={selectedDate} onSelectDate={setSelectedDate} />
+        <CalendarStrip selectedDate={selectedDate} onSelectDate={setSelectedDate} taskDates={taskDates} />
       </div>
 
       {/* Main Content Area */}

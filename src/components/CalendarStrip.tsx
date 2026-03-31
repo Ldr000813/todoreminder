@@ -8,9 +8,10 @@ import { useDroppable } from "@dnd-kit/core";
 interface CalendarStripProps {
   selectedDate: Date;
   onSelectDate: (d: Date) => void;
+  taskDates: Set<string>;
 }
 
-function DayButton({ date, selectedDate, onSelectDate }: { date: Date, selectedDate: Date, onSelectDate: (d: Date) => void }) {
+function DayButton({ date, selectedDate, onSelectDate, hasTask }: { date: Date, selectedDate: Date, onSelectDate: (d: Date) => void, hasTask: boolean }) {
   const isSelected = isSameDay(date, selectedDate);
   const isToday = isSameDay(date, new Date());
   
@@ -46,11 +47,15 @@ function DayButton({ date, selectedDate, onSelectDate }: { date: Date, selectedD
            className="absolute -bottom-1 w-1 h-1 rounded-full bg-white" 
         />
       )}
+
+      {hasTask && (
+        <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-blue-500 shadow-sm shadow-blue-500/50" />
+      )}
     </button>
   );
 }
 
-export function CalendarStrip({ selectedDate, onSelectDate }: CalendarStripProps) {
+export function CalendarStrip({ selectedDate, onSelectDate, taskDates }: CalendarStripProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [days, setDays] = useState<Date[]>([]);
 
@@ -119,7 +124,8 @@ export function CalendarStrip({ selectedDate, onSelectDate }: CalendarStripProps
             key={idx} 
             date={date} 
             selectedDate={selectedDate} 
-            onSelectDate={onSelectDate} 
+            onSelectDate={onSelectDate}
+            hasTask={taskDates.has(format(date, "yyyy-MM-dd"))}
           />
         ))}
       </div>
