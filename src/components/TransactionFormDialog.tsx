@@ -27,7 +27,9 @@ export function TransactionFormDialog({ isOpen, onClose, onSave, transaction, ca
     } else {
       setAmount("");
       setType("expense");
-      setCategoryId(categories.length > 0 ? categories[0].id : "");
+      const expenseCategories = categories.filter(c => !c.type || c.type === "expense");
+      const defaultCat = expenseCategories.find(c => c.name === "食費") || expenseCategories[0];
+      setCategoryId(defaultCat ? defaultCat.id : "");
       setNote("");
     }
   }, [transaction, isOpen, categories]);
@@ -36,7 +38,9 @@ export function TransactionFormDialog({ isOpen, onClose, onSave, transaction, ca
 
   useEffect(() => {
     if (filteredCategories.length > 0 && !filteredCategories.find(c => c.id === categoryId)) {
-      setCategoryId(filteredCategories[0].id);
+      const targetName = type === "expense" ? "食費" : "給与";
+      const defaultCat = filteredCategories.find(c => c.name === targetName) || filteredCategories[0];
+      setCategoryId(defaultCat.id);
     }
   }, [type, categories]);
 
