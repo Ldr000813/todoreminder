@@ -160,32 +160,30 @@ export function CalendarStrip({ selectedDate, onSelectDate, taskDates }: Calenda
             onPointerLeave={handlePointerUp}
             onPointerCancel={handlePointerUp}
             onContextMenu={(e) => isExpanded ? undefined : e.preventDefault()}
-            className="flex gap-3 overflow-x-auto no-scrollbar px-3 pb-2 pt-1 touch-pan-x"
+            className="flex gap-3 items-center overflow-x-auto no-scrollbar px-3 pb-2 pt-1 touch-pan-x"
             style={{ scrollbarWidth: "none" }}
           >
-            <div className="flex gap-3 items-center">
-              <span className="text-xs font-bold text-slate-300 dark:text-slate-600 px-2 flex-shrink-0 animate-pulse hidden sm:inline-block pointer-events-none">
-                Long press to expand
-              </span>
-              {days.map((date, idx) => (
-                <div key={idx} className="flex-shrink-0 relative">
-                  <DayButton 
-                    date={date} 
-                    selectedDate={selectedDate} 
-                    onSelectDate={(d) => {
-                      if (longPressTimer.current) clearTimeout(longPressTimer.current);
-                      onSelectDate(d);
-                    }}
-                    hasTask={taskDates.has(format(date, "yyyy-MM-dd"))}
-                    isDragging={isDragging}
-                  />
-                </div>
-              ))}
-            </div>
+            <span className="text-xs font-bold text-slate-300 dark:text-slate-600 px-2 flex-shrink-0 animate-pulse hidden sm:inline-block pointer-events-none">
+              Long press to expand
+            </span>
+            {days.map((date, idx) => (
+              <div key={idx} className="flex-shrink-0 relative">
+                <DayButton 
+                  date={date} 
+                  selectedDate={selectedDate} 
+                  onSelectDate={(d) => {
+                    if (longPressTimer.current) clearTimeout(longPressTimer.current);
+                    onSelectDate(d);
+                  }}
+                  hasTask={taskDates.has(format(date, "yyyy-MM-dd"))}
+                  isDragging={isDragging}
+                />
+              </div>
+            ))}
           </div>
         </>
       ) : (
-        <div className="bg-white dark:bg-[#1a1a1f] p-5 rounded-3xl shadow-2xl border border-slate-200 dark:border-white/10 mx-2 mb-2 animate-in slide-in-from-top-4 fade-in duration-300">
+        <div className="absolute top-0 left-0 right-0 z-[100] bg-white dark:bg-[#1a1a1f] p-5 pb-6 rounded-3xl shadow-2xl border border-slate-200 dark:border-white/10 mx-2 animate-in slide-in-from-top-4 fade-in duration-300">
           <div className="flex justify-between items-center mb-6">
             <button 
               onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
