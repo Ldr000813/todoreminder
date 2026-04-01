@@ -124,11 +124,12 @@ export default function Home() {
       }
     } else {
       if (selectedDates && selectedDates.length > 0) {
+        const bulkId = Date.now().toString(36) + Math.random().toString(36).substring(2);
         await Promise.all(selectedDates.map(async (d, i) => {
           await fetch("/api/tasks", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ ...taskData, date: d, order: tasks.length + i }),
+            body: JSON.stringify({ ...taskData, date: d, order: tasks.length + i, bulkId }),
           });
         }));
         fetchTasks(selectedDate);
@@ -165,6 +166,14 @@ export default function Home() {
     setTaskToDelete(null);
     setTasks(tasks.filter(t => t.id !== id));
     await fetch(`/api/tasks/${id}`, { method: "DELETE" });
+    fetchAllTaskDates();
+  };
+
+  const executeBulkDeleteTask = async (bulkId: string) => {
+    if (!taskToDelete) return;
+    setTaskToDelete(null);
+    setTasks(tasks.filter(t => t.bulkId !== bulkId));
+    await fetch(`/api/tasks?bulkId=${bulkId}`, { method: "DELETE" });
     fetchAllTaskDates();
   };
 
@@ -404,7 +413,10 @@ export default function Home() {
 
       {/* Delete Confirmation Dialog */}
       <AnimatePresence>
-        {taskToDelete && (
+        {taskToDelete && (() => {
+          const taskObj = tasks.find(t => t.id === taskToDelete);
+          const hasBulk = !!(taskObj && taskObj.bulkId);
+          return (
           <>
             <motion.div
               initial={{ opacity: 0 }}
@@ -428,24 +440,49 @@ export default function Home() {
                 <p className="text-slate-500 dark:text-slate-400 text-sm mb-7 font-medium leading-relaxed">
                   この操作は元に戻せません。<br/>本当に削除してもよろしいですか？
                 </p>
-                <div className="flex gap-3 w-full">
-                  <button
-                    onClick={() => setTaskToDelete(null)}
-                    className="flex-1 py-3.5 px-4 bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 text-slate-700 dark:text-slate-300 font-bold rounded-2xl transition-colors"
-                  >
-                    キャンセル
-                  </button>
-                  <button
-                    onClick={executeDeleteTask}
-                    className="flex-1 py-3.5 px-4 bg-rose-600 hover:bg-rose-700 active:bg-rose-800 text-white font-bold rounded-2xl shadow-lg shadow-rose-500/30 transition-all"
-                  >
-                    削除する
-                  </button>
-                </div>
+
+                {hasBulk ? (
+                  <div className="flex flex-col gap-3 w-full">
+                    <button
+                      onClick={executeDeleteTask}
+                      className="w-full py-3.5 px-4 bg-rose-600 hover:bg-rose-700 active:bg-rose-800 text-white font-bold rounded-2xl shadow-lg shadow-rose-500/30 transition-all"
+                    >
+                      この日のみ削除
+                    </button>
+                    <button
+                      onClick={() => executeBulkDeleteTask(taskObj.bulkId!)}
+                      className="w-full py-3.5 px-4 bg-orange-500 hover:bg-orange-600 active:bg-orange-700 text-white font-bold rounded-2xl shadow-lg shadow-orange-500/30 transition-all"
+                    >
+                      一括登録分をすべて削除
+                    </button>
+                    <button
+                      onClick={() => setTaskToDelete(null)}
+                      className="w-full mt-2 py-2 px-4 bg-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 font-bold rounded-2xl transition-colors"
+                    >
+                      キャンセル
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex gap-3 w-full">
+                    <button
+                      onClick={() => setTaskToDelete(null)}
+                      className="flex-1 py-3.5 px-4 bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 text-slate-700 dark:text-slate-300 font-bold rounded-2xl transition-colors"
+                    >
+                      キャンセル
+                    </button>
+                    <button
+                      onClick={executeDeleteTask}
+                      className="flex-1 py-3.5 px-4 bg-rose-600 hover:bg-rose-700 active:bg-rose-800 text-white font-bold rounded-2xl shadow-lg shadow-rose-500/30 transition-all"
+                    >
+                      削除する
+                    </button>
+                  </div>
+                )}
               </div>
             </motion.div>
           </>
-        )}
+          );
+        })()}
       </AnimatePresence>
 
       <DragOverlay dropAnimation={{ sideEffects: defaultDropAnimationSideEffects({ styles: { active: { opacity: "0.4" } } }) }}>

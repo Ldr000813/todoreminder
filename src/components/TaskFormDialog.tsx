@@ -45,7 +45,7 @@ export function TaskFormDialog({ isOpen, onClose, onSave, task, currentDate = ne
       const defaultDate = format(currentDate, "yyyy-MM-dd");
       setTaskDate(defaultDate);
       setIsBulkMode(false);
-      setSelectedDates([defaultDate]);
+      setSelectedDates([]);
     }
   }, [task, isOpen, currentDate]);
 

@@ -47,6 +47,7 @@ export async function POST(request: Request) {
       date,
       order: order || 0,
       failureReason: body.failureReason || '',
+      bulkId: body.bulkId || null,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -56,6 +57,35 @@ export async function POST(request: Request) {
     return NextResponse.json({ id: docRef.id, ...newTask }, { status: 201 });
   } catch (error: any) {
     console.error('Error creating task', error);
+    return NextResponse.json({ error: error.message || 'Internal Server Error' }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const bulkId = searchParams.get('bulkId');
+  
+  if (!bulkId) {
+    return NextResponse.json({ error: 'Missing bulkId' }, { status: 400 });
+  }
+
+  try {
+    const MOCK_USER_ID = process.env.MOCK_USER_ID || 'test-user-id';
+    const snapshot = await db.collection('tasks')
+      .where('userId', '==', MOCK_USER_ID)
+      .where('bulkId', '==', bulkId)
+      .get();
+      
+    const batch = db.batch();
+    snapshot.docs.forEach((doc) => {
+      batch.delete(doc.ref);
+    });
+    
+    await batch.commit();
+
+    return NextResponse.json({ success: true, deletedCount: snapshot.docs.length });
+  } catch (error: any) {
+    console.error('Error in bulk delete:', error);
     return NextResponse.json({ error: error.message || 'Internal Server Error' }, { status: 500 });
   }
 }

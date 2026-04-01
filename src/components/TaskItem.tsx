@@ -12,6 +12,7 @@ export interface Task {
   date: string;
   order: number;
   failureReason?: string;
+  bulkId?: string;
 }
 
 interface TaskItemProps {
