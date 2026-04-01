@@ -91,9 +91,13 @@ export function CalendarStrip({ selectedDate, onSelectDate, taskDates }: Calenda
     if (containerRef.current) {
       const selectedEl = containerRef.current.querySelector('[data-selected="true"]') as HTMLElement;
       if (selectedEl) {
-        const targetLeft = selectedEl.offsetLeft - containerRef.current.offsetWidth / 2 + selectedEl.offsetWidth / 2;
+        const containerRect = containerRef.current.getBoundingClientRect();
+        const selectedRect = selectedEl.getBoundingClientRect();
+        const targetDistance = (selectedRect.left - containerRect.left) - (containerRef.current.offsetWidth / 2) + (selectedRect.width / 2);
+        
         const startLeft = containerRef.current.scrollLeft;
-        const distance = targetLeft - startLeft;
+        const targetLeft = startLeft + targetDistance;
+        const distance = targetDistance;
         
         const duration = 1200; 
         
@@ -184,76 +188,76 @@ export function CalendarStrip({ selectedDate, onSelectDate, taskDates }: Calenda
         </>
       ) : (
         <div className="absolute top-0 left-0 right-0 z-[100] bg-white dark:bg-[#1a1a1f] p-5 pb-6 rounded-3xl shadow-2xl border border-slate-200 dark:border-white/10 mx-2 animate-in slide-in-from-top-4 fade-in duration-300">
-          <div className="flex justify-between items-center mb-6">
-            <button 
-              onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
-              className="p-2 bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 rounded-xl transition-colors text-slate-600 dark:text-slate-300"
-            >
-              ←
-            </button>
-            <h3 className="text-lg font-extrabold text-slate-800 dark:text-slate-100 tracking-tight">
-              {format(currentMonth, "yyyy年 M月")}
-            </h3>
-            <button 
-              onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
-              className="p-2 bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 rounded-xl transition-colors text-slate-600 dark:text-slate-300"
-            >
-              →
-            </button>
-          </div>
-          
-          <div className="grid grid-cols-7 gap-y-3 gap-x-1 mb-2">
-            {["日", "月", "火", "水", "木", "金", "土"].map((day, i) => (
-              <div key={day} className={`text-center text-xs font-extrabold ${i === 0 ? "text-rose-500/80" : i === 6 ? "text-blue-500/80" : "text-slate-400"}`}>
-                {day}
-              </div>
-            ))}
-          </div>
-          
-          <div className="grid grid-cols-7 gap-y-2 gap-x-1 mb-6">
-            {calendarDays.map(d => {
-              const isSelected = isSameDay(d, selectedDate);
-              const isCurrentMonth = isSameMonth(d, currentMonth);
-              const hasTask = taskDates.has(format(d, "yyyy-MM-dd"));
-              const today = isSameDay(d, new Date());
-              
-              if (!isCurrentMonth) {
-                return <div key={d.toString()} className="aspect-square opacity-0"></div>;
-              }
+          <div className="h-[22rem] overflow-y-auto pr-1 pb-4 custom-scrollbar space-y-6">
+            {Array.from({ length: 5 }).map((_, mIndex) => {
+              const monthStart = startOfMonth(addMonths(currentMonth, mIndex - 2));
+              const monthEnd = endOfMonth(monthStart);
+              const startDate = startOfWeek(monthStart);
+              const endDate = endOfWeek(monthEnd);
+              const days = eachDayOfInterval({ start: startDate, end: endDate });
 
               return (
-                <button
-                  key={d.toString()}
-                  onClick={() => {
-                    onSelectDate(d);
-                    setIsExpanded(false);
-                  }}
-                  className={`aspect-square relative rounded-xl flex items-center justify-center text-sm font-bold transition-all ${
-                    isSelected
-                      ? "bg-brand-500 text-white shadow-md shadow-brand-500/30 scale-105"
-                      : today
-                      ? "bg-brand-50 dark:bg-brand-900/30 text-brand-600 dark:text-brand-400 ring-1 ring-brand-500/30"
-                      : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/10"
-                  }`}
-                >
-                  {format(d, "d")}
-                  {hasTask && !isSelected && (
-                    <span className="absolute bottom-1 w-1 h-1 rounded-full bg-blue-500" />
-                  )}
-                  {isSelected && (
-                    <span className="absolute -bottom-1 w-1 h-1 rounded-full bg-white" />
-                  )}
-                </button>
+                <div key={mIndex}>
+                  <p className="text-sm font-bold text-slate-700 dark:text-slate-300 mb-3 ml-1">
+                    {format(monthStart, "yyyy年 M月")}
+                  </p>
+                  <div className="grid grid-cols-7 gap-1 mb-2">
+                    {["日", "月", "火", "水", "木", "金", "土"].map((day, i) => (
+                      <div key={day} className={`text-center text-[10px] font-extrabold ${i === 0 ? "text-rose-500/80" : i === 6 ? "text-blue-500/80" : "text-slate-400"}`}>
+                        {day}
+                      </div>
+                    ))}
+                  </div>
+                  <div className="grid grid-cols-7 gap-y-2 gap-x-1.5">
+                    {days.map((d) => {
+                      const dateStr = format(d, "yyyy-MM-dd");
+                      const isSelected = isSameDay(d, selectedDate);
+                      const isCurrentMonth = isSameMonth(d, monthStart);
+                      const hasTask = taskDates.has(dateStr);
+                      const isToday = isSameDay(d, new Date());
+                      
+                      if (!isCurrentMonth) {
+                        return <div key={`empty-${dateStr}`} className="aspect-square"></div>;
+                      }
+
+                      return (
+                        <button
+                          key={dateStr}
+                          type="button"
+                          onClick={() => {
+                            onSelectDate(d);
+                            setIsExpanded(false);
+                          }}
+                          className={`aspect-square relative rounded-xl flex items-center justify-center text-sm font-bold transition-all ${
+                            isSelected
+                              ? "bg-brand-500 text-white shadow-md shadow-brand-500/30 scale-105 ring-2 ring-brand-500/50"
+                              : isToday
+                              ? "bg-brand-50 dark:bg-brand-900/30 text-brand-600 dark:text-brand-400 ring-1 ring-brand-500/30"
+                              : "bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/10 hover:border-slate-300 dark:hover:border-white/20"
+                          }`}
+                        >
+                          {format(d, "d")}
+                          {hasTask && !isSelected && (
+                            <span className="absolute bottom-1 w-1 h-1 rounded-full bg-blue-500" />
+                          )}
+                          {isSelected && (
+                            <span className="absolute -bottom-1 w-1 h-1 rounded-full bg-white" />
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
               );
             })}
           </div>
 
-          <div className="flex justify-center">
+          <div className="flex justify-center mt-4">
             <button
               onClick={() => setIsExpanded(false)}
               className="px-6 py-2.5 bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-slate-700 dark:text-slate-300 text-sm font-bold rounded-xl transition-colors"
             >
-              閉じる
+              カレンダーを閉じる
             </button>
           </div>
         </div>
