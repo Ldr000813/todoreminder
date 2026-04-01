@@ -111,7 +111,7 @@ export default function Home() {
     }
   };
 
-  const handleSaveTask = async (taskData: Partial<Task>) => {
+  const handleSaveTask = async (taskData: Partial<Task>, selectedDates?: string[]) => {
     if (editingTask) {
       const res = await fetch(`/api/tasks/${editingTask.id}`, {
         method: "PATCH",
@@ -123,14 +123,26 @@ export default function Home() {
         fetchAllTaskDates();
       }
     } else {
-      const res = await fetch("/api/tasks", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...taskData, date: format(selectedDate, "yyyy-MM-dd"), order: tasks.length }),
-      });
-      if (res.ok) {
+      if (selectedDates && selectedDates.length > 0) {
+        await Promise.all(selectedDates.map(async (d, i) => {
+          await fetch("/api/tasks", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ ...taskData, date: d, order: tasks.length + i }),
+          });
+        }));
         fetchTasks(selectedDate);
         fetchAllTaskDates();
+      } else {
+        const res = await fetch("/api/tasks", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...taskData, date: taskData.date || format(selectedDate, "yyyy-MM-dd"), order: tasks.length }),
+        });
+        if (res.ok) {
+          fetchTasks(selectedDate);
+          fetchAllTaskDates();
+        }
       }
     }
     setEditingTask(null);

@@ -2,12 +2,12 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X, AlertCircle } from "lucide-react";
 import { Task, TaskStatus } from "./TaskItem";
 import { useState, useEffect } from "react";
-import { format } from "date-fns";
+import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, addMonths } from "date-fns";
 
 interface TaskFormDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (task: Partial<Task>) => void;
+  onSave: (task: Partial<Task>, selectedDates?: string[]) => void;
   task?: Task | null;
   currentDate?: Date;
 }
@@ -25,6 +25,8 @@ export function TaskFormDialog({ isOpen, onClose, onSave, task, currentDate = ne
   const [status, setStatus] = useState<TaskStatus>("TODO");
   const [failureReason, setFailureReason] = useState("");
   const [taskDate, setTaskDate] = useState("");
+  const [isBulkMode, setIsBulkMode] = useState(false);
+  const [selectedDates, setSelectedDates] = useState<string[]>([]);
 
   useEffect(() => {
     if (task) {
@@ -33,25 +35,41 @@ export function TaskFormDialog({ isOpen, onClose, onSave, task, currentDate = ne
       setStatus(task.status || "TODO");
       setFailureReason(task.failureReason || "");
       setTaskDate(task.date || format(currentDate, "yyyy-MM-dd"));
+      setIsBulkMode(false);
+      setSelectedDates([]);
     } else {
       setTitle("");
       setMemo("");
       setStatus("TODO");
       setFailureReason("");
-      setTaskDate(format(currentDate, "yyyy-MM-dd"));
+      const defaultDate = format(currentDate, "yyyy-MM-dd");
+      setTaskDate(defaultDate);
+      setIsBulkMode(false);
+      setSelectedDates([defaultDate]);
     }
   }, [task, isOpen, currentDate]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) return;
-    onSave({ 
-      title: title.trim(), 
-      memo: memo.trim(), 
-      status,
-      date: taskDate,
-      failureReason: status === "FAILED" ? failureReason.trim() : ""
-    });
+
+    if (isBulkMode && !task) {
+      if (selectedDates.length === 0) return;
+      onSave({ 
+        title: title.trim(), 
+        memo: memo.trim(), 
+        status,
+        failureReason: status === "FAILED" ? failureReason.trim() : ""
+      }, selectedDates);
+    } else {
+      onSave({ 
+        title: title.trim(), 
+        memo: memo.trim(), 
+        status,
+        date: taskDate,
+        failureReason: status === "FAILED" ? failureReason.trim() : ""
+      });
+    }
     onClose();
   };
 
@@ -107,16 +125,102 @@ export function TaskFormDialog({ isOpen, onClose, onSave, task, currentDate = ne
               </div>
 
               <div>
+                {!task ? (
+                  <div className="flex bg-slate-100 dark:bg-[#0f0f11] p-1 rounded-xl mb-3">
+                    <button
+                      type="button"
+                      onClick={() => setIsBulkMode(false)}
+                      className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${!isBulkMode ? "bg-white dark:bg-[#1a1a1f] shadow-sm text-brand-600 dark:text-brand-400" : "text-slate-500 hover:text-slate-700"}`}
+                    >
+                      単一登録
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setIsBulkMode(true)}
+                      className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${isBulkMode ? "bg-white dark:bg-[#1a1a1f] shadow-sm text-brand-600 dark:text-brand-400" : "text-slate-500 hover:text-slate-700"}`}
+                    >
+                      一括登録
+                    </button>
+                  </div>
+                ) : null}
+
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
                   日付
                 </label>
-                <input
-                  type="date"
-                  required
-                  value={taskDate}
-                  onChange={(e) => setTaskDate(e.target.value)}
-                  className="w-full text-base bg-slate-50 dark:bg-[#0f0f11] border border-slate-200 dark:border-white/10 rounded-xl p-3 focus:ring-2 focus:ring-brand-500/50 outline-none transition-all"
-                />
+                {!isBulkMode ? (
+                  <input
+                    type="date"
+                    required
+                    value={taskDate}
+                    onChange={(e) => setTaskDate(e.target.value)}
+                    className="w-full text-base bg-slate-50 dark:bg-[#0f0f11] border border-slate-200 dark:border-white/10 rounded-xl p-3 focus:ring-2 focus:ring-brand-500/50 outline-none transition-all"
+                  />
+                ) : (
+                  <div className="h-[18rem] overflow-y-auto pr-1 pb-2 custom-scrollbar space-y-6">
+                    {Array.from({ length: 3 }).map((_, mIndex) => {
+                      const monthStart = startOfMonth(addMonths(currentDate, mIndex));
+                      const monthEnd = endOfMonth(monthStart);
+                      const startDate = startOfWeek(monthStart);
+                      const endDate = endOfWeek(monthEnd);
+                      const days = eachDayOfInterval({ start: startDate, end: endDate });
+                      const todayStr = format(new Date(), "yyyy-MM-dd");
+
+                      return (
+                        <div key={mIndex}>
+                          <p className="text-sm font-bold text-slate-700 dark:text-slate-300 mb-3 ml-1">
+                            {format(monthStart, "yyyy年 M月")}
+                          </p>
+                          <div className="grid grid-cols-7 gap-1 mb-2">
+                            {["日", "月", "火", "水", "木", "金", "土"].map((day, i) => (
+                              <div key={day} className={`text-center text-[10px] font-extrabold ${i === 0 ? "text-rose-500/80" : i === 6 ? "text-blue-500/80" : "text-slate-400"}`}>
+                                {day}
+                              </div>
+                            ))}
+                          </div>
+                          <div className="grid grid-cols-7 gap-1.5">
+                            {days.map((d) => {
+                              const dateStr = format(d, "yyyy-MM-dd");
+                              const isSelected = selectedDates.includes(dateStr);
+                              const isCurrentMonth = isSameMonth(d, monthStart);
+                              const isPast = dateStr < todayStr;
+                              
+                              if (!isCurrentMonth) {
+                                return <div key={`empty-${d.toString()}`} className="aspect-square"></div>;
+                              }
+
+                              return (
+                                <button
+                                  key={dateStr}
+                                  type="button"
+                                  disabled={isPast}
+                                  onClick={() => {
+                                    if (isSelected) {
+                                      setSelectedDates(prev => prev.filter(x => x !== dateStr));
+                                    } else {
+                                      setSelectedDates(prev => [...prev, dateStr]);
+                                    }
+                                  }}
+                                  className={`aspect-square rounded-xl flex items-center justify-center text-sm font-bold transition-all ${
+                                    isPast
+                                      ? "opacity-30 cursor-not-allowed text-slate-400"
+                                      : isSelected
+                                      ? "bg-brand-500 text-white shadow-md shadow-brand-500/30 scale-105 ring-2 ring-brand-500/50"
+                                      : "bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/10 hover:border-slate-300 dark:hover:border-white/20"
+                                  }`}
+                                >
+                                  {format(d, "d")}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+                {isBulkMode && selectedDates.length === 0 && (
+                  <p className="text-xs text-rose-500 mt-2 font-medium">1日以上選択してください</p>
+                )}
               </div>
 
               {task && (
