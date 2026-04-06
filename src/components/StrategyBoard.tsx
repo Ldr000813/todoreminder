@@ -1,11 +1,13 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Target, Edit2, Check, ChevronDown, ChevronUp } from "lucide-react";
+import { Target, Edit2, Check, ChevronDown, ChevronUp, CalendarPlus } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 export function StrategyBoard() {
   const [strategyText, setStrategyText] = useState("");
+  const [weeklyTaskText, setWeeklyTaskText] = useState("");
+  const [activeTab, setActiveTab] = useState<"strategy" | "weekly">("strategy");
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
@@ -20,8 +22,11 @@ export function StrategyBoard() {
       const res = await fetch("/api/settings");
       if (res.ok) {
         const data = await res.json();
-        if (data.settings?.strategyText) {
+        if (data.settings?.strategyText !== undefined) {
           setStrategyText(data.settings.strategyText);
+        }
+        if (data.settings?.weeklyTaskText !== undefined) {
+          setWeeklyTaskText(data.settings.weeklyTaskText);
         }
       }
     } catch (e) {
@@ -32,10 +37,14 @@ export function StrategyBoard() {
   const handleSave = async () => {
     setIsSaving(true);
     try {
+      const bodyPayload = activeTab === "strategy" 
+        ? { strategyText } 
+        : { weeklyTaskText };
+        
       const res = await fetch("/api/settings", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ strategyText }),
+        body: JSON.stringify(bodyPayload),
       });
       if (res.ok) {
         setIsEditing(false);
@@ -59,7 +68,7 @@ export function StrategyBoard() {
       resizeTextarea();
       textareaRef.current?.focus();
     }
-  }, [isEditing, strategyText]);
+  }, [isEditing, strategyText, weeklyTaskText, activeTab]);
 
   return (
     <div className="mx-6 mb-1 mt-1 bg-gradient-to-r from-brand-50 to-indigo-50 dark:from-brand-950/30 dark:to-indigo-950/30 rounded-2xl border border-brand-100/50 dark:border-brand-800/30 shadow-sm relative group overflow-hidden">
@@ -70,13 +79,38 @@ export function StrategyBoard() {
         onClick={() => !isEditing && setIsExpanded(!isExpanded)}
       >
         <div className="flex items-center gap-1.5 flex-1 min-w-0">
-          <Target size={16} strokeWidth={2.5} className="text-brand-500" />
-          <h2 className="text-sm font-bold text-brand-700 dark:text-brand-300 truncate">
-            長期的な戦略・目標
-          </h2>
-          {!isExpanded && strategyText && (
+          {activeTab === "strategy" ? (
+            <Target size={16} strokeWidth={2.5} className="text-brand-500" />
+          ) : (
+            <CalendarPlus size={16} strokeWidth={2.5} className="text-brand-500" />
+          )}
+          
+          <div className="flex items-center bg-brand-100/50 dark:bg-brand-900/50 rounded-lg p-0.5 ml-1 shrink-0">
+            <button
+              onClick={(e) => { e.stopPropagation(); setActiveTab('strategy'); setIsEditing(false); }}
+              className={`text-xs font-bold px-2.5 py-1 rounded-md transition-all whitespace-nowrap ${
+                activeTab === 'strategy' 
+                  ? 'bg-white dark:bg-slate-800 text-brand-600 dark:text-brand-300 shadow-sm' 
+                  : 'text-slate-500 dark:text-slate-400 hover:text-brand-600 dark:hover:text-brand-300'
+              }`}
+            >
+              長期戦略
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); setActiveTab('weekly'); setIsEditing(false); }}
+              className={`text-xs font-bold px-2.5 py-1 rounded-md transition-all whitespace-nowrap ${
+                activeTab === 'weekly' 
+                  ? 'bg-white dark:bg-slate-800 text-brand-600 dark:text-brand-300 shadow-sm' 
+                  : 'text-slate-500 dark:text-slate-400 hover:text-brand-600 dark:hover:text-brand-300'
+              }`}
+            >
+              週次タスク
+            </button>
+          </div>
+
+          {!isExpanded && (activeTab === 'strategy' ? strategyText : weeklyTaskText) && (
             <span className="text-xs text-slate-400 dark:text-slate-500 ml-2 truncate hidden sm:inline-block">
-              {strategyText.split("\n")[0]}
+              {(activeTab === 'strategy' ? strategyText : weeklyTaskText).split("\n")[0]}
             </span>
           )}
         </div>
@@ -126,20 +160,24 @@ export function StrategyBoard() {
               {isEditing ? (
                 <textarea
                   ref={textareaRef}
-                  value={strategyText}
+                  value={activeTab === 'strategy' ? strategyText : weeklyTaskText}
                   onChange={(e) => {
-                    setStrategyText(e.target.value);
+                    if (activeTab === 'strategy') {
+                      setStrategyText(e.target.value);
+                    } else {
+                      setWeeklyTaskText(e.target.value);
+                    }
                     resizeTextarea();
                   }}
-                  placeholder="ここに長期的な戦略や目標を入力してください..."
+                  placeholder={activeTab === 'strategy' ? "ここに長期的な戦略や目標を入力してください..." : "例: 来週月曜日までに機械学習課題"}
                   className="w-full bg-white/60 dark:bg-black/20 p-3 rounded-xl border border-brand-200/50 dark:border-brand-700/50 focus:outline-none focus:ring-2 focus:ring-brand-500/50 text-slate-700 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-600 resize-none overflow-hidden transition-all min-h-[5rem]"
                   rows={2}
                 />
               ) : (
                 <div 
-                  className={`whitespace-pre-wrap leading-relaxed ${strategyText ? 'text-slate-700 dark:text-slate-200' : 'text-slate-400 dark:text-slate-600 italic px-2 py-1'}`}
+                  className={`whitespace-pre-wrap leading-relaxed ${(activeTab === 'strategy' ? strategyText : weeklyTaskText) ? 'text-slate-700 dark:text-slate-200' : 'text-slate-400 dark:text-slate-600 italic px-2 py-1'}`}
                 >
-                  {strategyText || "目標が設定されていません。右上の編集ボタンから追加してください。"}
+                  {(activeTab === 'strategy' ? strategyText : weeklyTaskText) || (activeTab === 'strategy' ? "目標が設定されていません。右上の編集ボタンから追加してください。" : "週次タスクが設定されていません。右上の編集ボタンから追加してください。")}
                 </div>
               )}
             </div>

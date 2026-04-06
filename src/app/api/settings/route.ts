@@ -11,7 +11,7 @@ export async function GET(request: Request) {
     const doc = await docRef.get();
 
     if (!doc.exists) {
-      return NextResponse.json({ settings: { strategyText: '' } });
+      return NextResponse.json({ settings: { strategyText: '', weeklyTaskText: '' } });
     }
 
     return NextResponse.json({ settings: doc.data() });
@@ -24,13 +24,18 @@ export async function GET(request: Request) {
 export async function PATCH(request: Request) {
   try {
     const body = await request.json();
-    const { strategyText } = body;
+    const { strategyText, weeklyTaskText } = body;
     const MOCK_USER_ID = process.env.MOCK_USER_ID || 'test-user-id';
 
     const docRef = db.collection('userSettings').doc(MOCK_USER_ID);
-    await docRef.set({ strategyText, updatedAt: new Date() }, { merge: true });
+    
+    const updates: any = { updatedAt: new Date() };
+    if (strategyText !== undefined) updates.strategyText = strategyText;
+    if (weeklyTaskText !== undefined) updates.weeklyTaskText = weeklyTaskText;
 
-    return NextResponse.json({ success: true, strategyText });
+    await docRef.set(updates, { merge: true });
+
+    return NextResponse.json({ success: true });
   } catch (error: any) {
     console.error('Error updating settings', error);
     return NextResponse.json({ error: error.message || 'Internal Server Error' }, { status: 500 });
