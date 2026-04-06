@@ -8,6 +8,7 @@ interface TaskFormDialogProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (task: Partial<Task>, selectedDates?: string[]) => void;
+  onBulkDelete?: (bulkId: string) => void;
   task?: Task | null;
   currentDate?: Date;
 }
@@ -19,14 +20,40 @@ const statusDisplay: Record<TaskStatus, { label: string, colorClass: string }> =
   FAILED: { label: "失敗", colorClass: "text-rose-600 dark:text-rose-400 bg-white dark:bg-[#1a1a1f]" },
 };
 
-export function TaskFormDialog({ isOpen, onClose, onSave, task, currentDate = new Date() }: TaskFormDialogProps) {
+export function TaskFormDialog({ isOpen, onClose, onSave, onBulkDelete, task, currentDate = new Date() }: TaskFormDialogProps) {
   const [title, setTitle] = useState("");
   const [memo, setMemo] = useState("");
   const [status, setStatus] = useState<TaskStatus>("TODO");
   const [failureReason, setFailureReason] = useState("");
   const [taskDate, setTaskDate] = useState("");
-  const [isBulkMode, setIsBulkMode] = useState(false);
+  const [formMode, setFormMode] = useState<"single" | "bulk" | "delete">("single");
   const [selectedDates, setSelectedDates] = useState<string[]>([]);
+  const [bulkGroups, setBulkGroups] = useState<{bulkId: string, title: string, count: number, dates: string[]}[]>([]);
+
+  useEffect(() => {
+    if (formMode === "delete") {
+      fetch("/api/tasks")
+        .then(res => res.json())
+        .then(data => {
+          if (data.tasks) {
+            const groups: Record<string, { title: string, count: number, dates: string[] }> = {};
+            data.tasks.forEach((t: Task) => {
+              if (t.bulkId) {
+                if (!groups[t.bulkId]) {
+                   groups[t.bulkId] = { title: t.title, count: 0, dates: [] };
+                }
+                groups[t.bulkId].count++;
+                groups[t.bulkId].dates.push(t.date);
+              }
+            });
+            const validGroups = Object.keys(groups)
+              .filter(bulkId => groups[bulkId].count >= 2)
+              .map(bulkId => ({ bulkId, ...groups[bulkId] }));
+            setBulkGroups(validGroups);
+          }
+        });
+    }
+  }, [formMode, isOpen]);
 
   useEffect(() => {
     if (task) {
@@ -35,7 +62,7 @@ export function TaskFormDialog({ isOpen, onClose, onSave, task, currentDate = ne
       setStatus(task.status || "TODO");
       setFailureReason(task.failureReason || "");
       setTaskDate(task.date || format(currentDate, "yyyy-MM-dd"));
-      setIsBulkMode(false);
+      setFormMode("single");
       setSelectedDates([]);
     } else {
       setTitle("");
@@ -44,7 +71,7 @@ export function TaskFormDialog({ isOpen, onClose, onSave, task, currentDate = ne
       setFailureReason("");
       const defaultDate = format(currentDate, "yyyy-MM-dd");
       setTaskDate(defaultDate);
-      setIsBulkMode(false);
+      if(formMode !== "delete") setFormMode("single");
       setSelectedDates([]);
     }
   }, [task, isOpen, currentDate]);
@@ -53,7 +80,7 @@ export function TaskFormDialog({ isOpen, onClose, onSave, task, currentDate = ne
     e.preventDefault();
     if (!title.trim()) return;
 
-    if (isBulkMode && !task) {
+    if (formMode === "bulk" && !task) {
       if (selectedDates.length === 0) return;
       onSave({ 
         title: title.trim(), 
@@ -61,7 +88,7 @@ export function TaskFormDialog({ isOpen, onClose, onSave, task, currentDate = ne
         status,
         failureReason: status === "FAILED" ? failureReason.trim() : ""
       }, selectedDates);
-    } else {
+    } else if (formMode === "single" || task) {
       onSave({ 
         title: title.trim(), 
         memo: memo.trim(), 
@@ -102,52 +129,89 @@ export function TaskFormDialog({ isOpen, onClose, onSave, task, currentDate = ne
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="flex flex-col gap-5 px-2">
-              <div>
-                <input
-                  autoFocus
-                  required
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  placeholder="タスク名 (例: 朝9時起床)"
-                  className="w-full text-2xl font-semibold bg-transparent border-none placeholder-slate-300 dark:placeholder-slate-700 focus:ring-0 px-0 outline-none"
-                />
-              </div>
+            <div className="flex flex-col gap-5 px-2">
+              {!task ? (
+                <div className="flex bg-slate-100 dark:bg-[#0f0f11] p-1 rounded-xl mb-1">
+                  <button
+                    type="button"
+                    onClick={() => setFormMode("single")}
+                    className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${formMode === "single" ? "bg-white dark:bg-[#1a1a1f] shadow-sm text-brand-600 dark:text-brand-400" : "text-slate-500 hover:text-slate-700"}`}
+                  >
+                    単一登録
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFormMode("bulk")}
+                    className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${formMode === "bulk" ? "bg-white dark:bg-[#1a1a1f] shadow-sm text-brand-600 dark:text-brand-400" : "text-slate-500 hover:text-slate-700"}`}
+                  >
+                    一括登録
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFormMode("delete")}
+                    className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${formMode === "delete" ? "bg-rose-500 shadow-sm text-white dark:text-white" : "text-slate-500 hover:text-rose-500"}`}
+                  >
+                    一括削除
+                  </button>
+                </div>
+              ) : null}
 
-              <div>
-                <textarea
-                  value={memo}
-                  onChange={(e) => setMemo(e.target.value)}
-                  placeholder="メモや詳細..."
-                  rows={2}
-                  className="w-full text-base bg-slate-50 dark:bg-[#0f0f11] border border-slate-200 dark:border-white/10 rounded-xl p-4 focus:ring-2 focus:ring-brand-500/50 outline-none transition-all resize-none"
-                />
-              </div>
-
-              <div>
-                {!task ? (
-                  <div className="flex bg-slate-100 dark:bg-[#0f0f11] p-1 rounded-xl mb-3">
-                    <button
-                      type="button"
-                      onClick={() => setIsBulkMode(false)}
-                      className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${!isBulkMode ? "bg-white dark:bg-[#1a1a1f] shadow-sm text-brand-600 dark:text-brand-400" : "text-slate-500 hover:text-slate-700"}`}
-                    >
-                      単一登録
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setIsBulkMode(true)}
-                      className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${isBulkMode ? "bg-white dark:bg-[#1a1a1f] shadow-sm text-brand-600 dark:text-brand-400" : "text-slate-500 hover:text-slate-700"}`}
-                    >
-                      一括登録
-                    </button>
+              {formMode === "delete" && !task ? (
+                <div className="flex flex-col gap-3 max-h-[50vh] overflow-y-auto pr-2 pb-6 custom-scrollbar">
+                  {bulkGroups.length === 0 ? (
+                    <p className="text-center text-sm text-slate-500 my-8">
+                      削除可能な一括登録タスクはありません<br/>
+                      <span className="text-xs opacity-80">(同じIDのタスクが2つ以上必要です)</span>
+                    </p>
+                  ) : (
+                    bulkGroups.map(bg => (
+                      <div key={bg.bulkId} className="flex justify-between items-center p-4 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl">
+                        <div className="flex-1 min-w-0 pr-3">
+                          <h4 className="font-bold text-sm text-slate-800 dark:text-slate-100 truncate">{bg.title}</h4>
+                          <p className="text-xs text-slate-500 mt-1">{bg.count}件のタスク ( {bg.dates.slice(0, 3).map(d => d.slice(5)).join(', ')}{bg.count > 3 ? '...' : ''} )</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (onBulkDelete) onBulkDelete(bg.bulkId);
+                            setBulkGroups(prev => prev.filter(g => g.bulkId !== bg.bulkId));
+                          }}
+                          className="px-4 py-2 bg-rose-100 dark:bg-rose-900/40 text-rose-600 dark:text-rose-400 text-xs font-bold rounded-xl hover:bg-rose-200 dark:hover:bg-rose-800/60 transition-colors"
+                        >
+                          削除
+                        </button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              ) : (
+                <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+                  <div>
+                    <input
+                      autoFocus
+                      required
+                      value={title}
+                      onChange={(e) => setTitle(e.target.value)}
+                      placeholder="タスク名 (例: 朝9時起床)"
+                      className="w-full text-2xl font-semibold bg-transparent border-none placeholder-slate-300 dark:placeholder-slate-700 focus:ring-0 px-0 outline-none"
+                    />
                   </div>
-                ) : null}
 
+                  <div>
+                    <textarea
+                      value={memo}
+                      onChange={(e) => setMemo(e.target.value)}
+                      placeholder="メモや詳細..."
+                      rows={2}
+                      className="w-full text-base bg-slate-50 dark:bg-[#0f0f11] border border-slate-200 dark:border-white/10 rounded-xl p-4 focus:ring-2 focus:ring-brand-500/50 outline-none transition-all resize-none"
+                    />
+                  </div>
+
+              <div>
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
                   日付
                 </label>
-                {!isBulkMode ? (
+                {formMode !== "bulk" ? (
                   <input
                     type="date"
                     required
@@ -157,7 +221,7 @@ export function TaskFormDialog({ isOpen, onClose, onSave, task, currentDate = ne
                   />
                 ) : (
                   <div className="h-[18rem] overflow-y-auto pr-1 pb-2 custom-scrollbar space-y-6">
-                    {Array.from({ length: 3 }).map((_, mIndex) => {
+                    {Array.from({ length: 12 }).map((_, mIndex) => {
                       const monthStart = startOfMonth(addMonths(currentDate, mIndex));
                       const monthEnd = endOfMonth(monthStart);
                       const startDate = startOfWeek(monthStart);
@@ -218,7 +282,7 @@ export function TaskFormDialog({ isOpen, onClose, onSave, task, currentDate = ne
                     })}
                   </div>
                 )}
-                {isBulkMode && selectedDates.length === 0 && (
+                {formMode === "bulk" && selectedDates.length === 0 && (
                   <p className="text-xs text-rose-500 mt-2 font-medium">1日以上選択してください</p>
                 )}
               </div>
@@ -280,6 +344,8 @@ export function TaskFormDialog({ isOpen, onClose, onSave, task, currentDate = ne
                 {task ? "保存する" : "追加する"}
               </button>
             </form>
+            )}
+            </div>
           </motion.div>
         </>
       )}

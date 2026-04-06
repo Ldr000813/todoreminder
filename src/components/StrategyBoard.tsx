@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 export function StrategyBoard() {
   const [strategyText, setStrategyText] = useState("");
   const [weeklyTaskText, setWeeklyTaskText] = useState("");
-  const [activeTab, setActiveTab] = useState<"strategy" | "weekly">("strategy");
+  const [activeTab, setActiveTab] = useState<"strategy" | "weekly">("weekly");
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
@@ -87,16 +87,6 @@ export function StrategyBoard() {
           
           <div className="flex items-center bg-brand-100/50 dark:bg-brand-900/50 rounded-lg p-0.5 ml-1 shrink-0">
             <button
-              onClick={(e) => { e.stopPropagation(); setActiveTab('strategy'); setIsEditing(false); }}
-              className={`text-xs font-bold px-2.5 py-1 rounded-md transition-all whitespace-nowrap ${
-                activeTab === 'strategy' 
-                  ? 'bg-white dark:bg-slate-800 text-brand-600 dark:text-brand-300 shadow-sm' 
-                  : 'text-slate-500 dark:text-slate-400 hover:text-brand-600 dark:hover:text-brand-300'
-              }`}
-            >
-              長期戦略
-            </button>
-            <button
               onClick={(e) => { e.stopPropagation(); setActiveTab('weekly'); setIsEditing(false); }}
               className={`text-xs font-bold px-2.5 py-1 rounded-md transition-all whitespace-nowrap ${
                 activeTab === 'weekly' 
@@ -105,6 +95,16 @@ export function StrategyBoard() {
               }`}
             >
               週次タスク
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); setActiveTab('strategy'); setIsEditing(false); }}
+              className={`text-xs font-bold px-2.5 py-1 rounded-md transition-all whitespace-nowrap ${
+                activeTab === 'strategy' 
+                  ? 'bg-white dark:bg-slate-800 text-brand-600 dark:text-brand-300 shadow-sm' 
+                  : 'text-slate-500 dark:text-slate-400 hover:text-brand-600 dark:hover:text-brand-300'
+              }`}
+            >
+              長期戦略
             </button>
           </div>
 

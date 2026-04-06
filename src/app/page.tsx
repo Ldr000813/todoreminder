@@ -170,7 +170,6 @@ export default function Home() {
   };
 
   const executeBulkDeleteTask = async (bulkId: string) => {
-    if (!taskToDelete) return;
     setTaskToDelete(null);
     setTasks(tasks.filter(t => t.bulkId !== bulkId));
     await fetch(`/api/tasks?bulkId=${bulkId}`, { method: "DELETE" });
@@ -390,6 +389,7 @@ export default function Home() {
         isOpen={isTaskDialogOpen}
         onClose={() => setTaskDialogOpen(false)}
         onSave={handleSaveTask}
+        onBulkDelete={executeBulkDeleteTask}
         task={editingTask}
         currentDate={selectedDate}
       />

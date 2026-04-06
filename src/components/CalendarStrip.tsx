@@ -68,10 +68,10 @@ export function CalendarStrip({ selectedDate, onSelectDate, taskDates }: Calenda
   const longPressTimer = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    // Generate ±30 days from today to allow scrolling
+    // Generate ±365 days from today to allow scrolling
     const today = new Date();
     const range = [];
-    for (let i = -30; i <= 30; i++) {
+    for (let i = -365; i <= 365; i++) {
       range.push(addDays(today, i));
     }
     setDays(range);
@@ -189,8 +189,8 @@ export function CalendarStrip({ selectedDate, onSelectDate, taskDates }: Calenda
       ) : (
         <div className="absolute top-0 left-0 right-0 z-[100] bg-white dark:bg-[#1a1a1f] p-5 pb-6 rounded-3xl shadow-2xl border border-slate-200 dark:border-white/10 mx-2 animate-in slide-in-from-top-4 fade-in duration-300">
           <div className="h-[22rem] overflow-y-auto pr-1 pb-4 custom-scrollbar space-y-6">
-            {Array.from({ length: 5 }).map((_, mIndex) => {
-              const monthStart = startOfMonth(addMonths(currentMonth, mIndex - 2));
+            {Array.from({ length: 24 }).map((_, mIndex) => {
+              const monthStart = startOfMonth(addMonths(currentMonth, mIndex - 6));
               const monthEnd = endOfMonth(monthStart);
               const startDate = startOfWeek(monthStart);
               const endDate = endOfWeek(monthEnd);
